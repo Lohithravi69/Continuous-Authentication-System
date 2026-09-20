@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { RawKeyEvent } from '../types';
-import { KeyRound, CheckCircle2, AlertTriangle, Sparkles, ArrowRight, RefreshCw, ShieldCheck } from 'lucide-react';
+import { KeyRound, CheckCircle2, AlertTriangle, Sparkles, ArrowRight, RefreshCw, ShieldCheck, Fingerprint, Zap } from 'lucide-react';
 
 interface EnrollmentWizardProps {
   onComplete: () => void;
@@ -32,7 +32,6 @@ export const EnrollmentWizard: React.FC<EnrollmentWizardProps> = ({ onComplete }
   const backspaceCount = useRef<number>(0);
   const pasteDetected = useRef<boolean>(false);
 
-  // Initialize enrollment session on mount
   useEffect(() => {
     const init = async () => {
       setLoading(true);
@@ -79,7 +78,7 @@ export const EnrollmentWizard: React.FC<EnrollmentWizardProps> = ({ onComplete }
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     e.preventDefault();
     pasteDetected.current = true;
-    setFeedbackMsg({ type: 'error', text: 'Pasting text is disabled during behavioral enrollment.' });
+    setFeedbackMsg({ type: 'error', text: 'Pasting text is disabled during behavioral calibration.' });
   };
 
   const submitSessionWindow = async () => {
@@ -96,7 +95,6 @@ export const EnrollmentWizard: React.FC<EnrollmentWizardProps> = ({ onComplete }
     const backspaces = backspaceCount.current;
     const paste = pasteDetected.current;
 
-    // Reset buffer for next step
     keyEvents.current = [];
     pendingKeys.current.clear();
     backspaceCount.current = 0;
@@ -115,17 +113,16 @@ export const EnrollmentWizard: React.FC<EnrollmentWizardProps> = ({ onComplete }
 
       if (res.quality === 'ACCEPT') {
         setCurrentStep(res.windows_captured);
-        setFeedbackMsg({ type: 'success', text: `Session ${res.windows_captured}/${requiredSteps} accepted!` });
+        setFeedbackMsg({ type: 'success', text: `Session ${res.windows_captured}/${requiredSteps} accepted & calibrated!` });
         stepStartTs.current = performance.now();
 
         if (res.is_ready_to_train) {
-          // Trigger training One-Class SVM
           setTraining(true);
           try {
             await api.completeEnrollment(enrollSessionId);
             await refreshUser();
             setModelTrained(true);
-            setFeedbackMsg({ type: 'success', text: 'Model v1.0 successfully trained and deployed!' });
+            setFeedbackMsg({ type: 'success', text: 'One-Class SVM model successfully trained and deployed!' });
           } catch (err: any) {
             setFeedbackMsg({ type: 'error', text: err.message || 'Model training failed.' });
           } finally {
@@ -145,104 +142,117 @@ export const EnrollmentWizard: React.FC<EnrollmentWizardProps> = ({ onComplete }
   const promptText = ENROLLMENT_PROMPTS[Math.min(currentStep, ENROLLMENT_PROMPTS.length - 1)];
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4">
-      <div className="glass-panel rounded-3xl p-6 sm:p-10 border border-slate-800 shadow-2xl relative overflow-hidden">
+    <div className="max-w-3xl mx-auto py-10 px-4 cyber-grid">
+      <div className="ultra-glass rounded-3xl p-6 sm:p-10 border border-white/10 shadow-2xl relative overflow-hidden">
         
-        {/* Glow */}
-        <div className="absolute -top-32 -right-32 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+        {/* Glow & Cyber Aperture */}
+        <div className="absolute -top-32 -right-32 w-64 h-64 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -left-32 w-64 h-64 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
 
         {/* Header */}
-        <div className="flex items-center gap-3.5 mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 shadow-lg shadow-sky-500/10">
-            <KeyRound className="w-6 h-6" />
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-cyan-500 via-sky-600 to-indigo-600 flex items-center justify-center text-white shadow-xl shadow-cyan-500/20 border border-cyan-400/30">
+            <Fingerprint className="w-7 h-7" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">
-              Behavioral Biometrics Enrollment Wizard
+            <h1 className="text-2xl font-black text-white tracking-tight">
+              Behavioral Biometrics Calibration
             </h1>
-            <p className="text-xs text-slate-400">
-              Collects keystroke timing dynamics to train your personalized One-Class SVM baseline.
+            <p className="text-xs text-slate-400 mt-0.5">
+              3-Session Keystroke Dynamic Profiling & One-Class SVM Synthesis
             </p>
           </div>
         </div>
 
-        {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="flex justify-between text-xs font-semibold mb-2">
-            <span className="text-slate-300">Enrollment Progress</span>
-            <span className="text-sky-400 font-mono">{currentStep} of {requiredSteps} Sessions Completed</span>
+        {/* 3 Step Progress Indicators */}
+        <div className="mb-8 p-4 rounded-2xl bg-slate-950/60 border border-slate-800">
+          <div className="flex justify-between items-center text-xs font-semibold mb-3">
+            <span className="text-slate-300 font-mono">Calibration Progress</span>
+            <span className="text-cyan-400 font-mono font-bold">{currentStep} of {requiredSteps} Sessions Completed</span>
           </div>
-          <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-            <div 
-              className="bg-gradient-to-r from-sky-500 to-indigo-500 h-full transition-all duration-500 rounded-full"
-              style={{ width: `${(currentStep / requiredSteps) * 100}%` }}
-            />
+
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            {[0, 1, 2].map((idx) => (
+              <div 
+                key={idx} 
+                className={`h-2.5 rounded-full transition-all duration-500 ${
+                  idx < currentStep 
+                    ? 'bg-gradient-to-r from-cyan-400 to-sky-500 shadow-md shadow-cyan-500/40' 
+                    : idx === currentStep 
+                      ? 'bg-cyan-500/30 border border-cyan-400/50 animate-pulse' 
+                      : 'bg-slate-800'
+                }`}
+              />
+            ))}
           </div>
         </div>
 
         {/* Feedback Alert */}
         {feedbackMsg && (
-          <div className={`mb-6 p-4 rounded-xl border text-xs flex items-center gap-3 ${
+          <div className={`mb-6 p-4 rounded-2xl border text-xs flex items-center gap-3 shadow-lg ${
             feedbackMsg.type === 'success' 
               ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' 
               : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
           }`}>
             {feedbackMsg.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-400" />
             ) : (
-              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+              <AlertTriangle className="w-5 h-5 shrink-0 text-rose-400" />
             )}
-            <span>{feedbackMsg.text}</span>
+            <span className="font-medium">{feedbackMsg.text}</span>
           </div>
         )}
 
         {/* Finished / Model Ready State */}
         {modelTrained ? (
-          <div className="text-center py-8 bg-emerald-950/20 border border-emerald-500/30 rounded-2xl p-6 mb-6">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 mx-auto flex items-center justify-center text-emerald-400 mb-4 shadow-lg shadow-emerald-500/20">
-              <ShieldCheck className="w-8 h-8" />
+          <div className="text-center py-10 bg-gradient-to-b from-emerald-950/30 to-slate-950/80 border border-emerald-500/40 rounded-3xl p-8 mb-6 shadow-2xl shadow-emerald-950/50">
+            <div className="w-20 h-20 rounded-3xl bg-emerald-500/20 border border-emerald-500/40 mx-auto flex items-center justify-center text-emerald-400 mb-5 shadow-2xl shadow-emerald-500/30 animate-pulse">
+              <ShieldCheck className="w-10 h-10" />
             </div>
-            <h2 className="text-lg font-bold text-white mb-2">
-              Behavioral Baseline Profile Active
+            <h2 className="text-xl font-black text-white mb-2 tracking-tight">
+              Behavioral Profile Synthesis Complete
             </h2>
-            <p className="text-xs text-slate-300 max-w-md mx-auto mb-6">
-              Your One-Class SVM model (version <strong>v1.0</strong>) has been trained and saved. Continuous background monitoring is now enabled across your sessions.
+            <p className="text-xs text-slate-300 max-w-md mx-auto mb-8 leading-relaxed">
+              Your personalized One-Class SVM model (version <strong className="text-cyan-400">v1.0</strong>) is active. Continuous background monitoring will now evaluate your live sessions silently.
             </p>
             <button
               onClick={onComplete}
-              className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-lg shadow-emerald-600/30 flex items-center gap-2 mx-auto"
+              className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold transition-all shadow-xl shadow-emerald-600/30 flex items-center gap-2.5 mx-auto hover:scale-105"
             >
-              <span>Launch Protected Dashboard</span>
+              <span>Enter Protected Workspace</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         ) : training ? (
-          <div className="text-center py-12 bg-slate-950/60 border border-slate-800 rounded-2xl p-6">
-            <div className="w-12 h-12 border-3 border-sky-500/30 border-t-sky-500 rounded-full animate-spin mx-auto mb-4" />
-            <h3 className="text-base font-bold text-white mb-1">
-              Training One-Class SVM Profile...
+          <div className="text-center py-16 bg-slate-950/80 border border-slate-800 rounded-3xl p-8">
+            <div className="relative w-16 h-16 mx-auto mb-6">
+              <div className="w-16 h-16 rounded-full border-4 border-cyan-500/20 border-t-cyan-400 animate-spin" />
+              <Zap className="w-6 h-6 text-cyan-400 absolute inset-0 m-auto" />
+            </div>
+            <h3 className="text-lg font-extrabold text-white mb-1">
+              Training Behavioral Anomaly Profile...
             </h3>
-            <p className="text-xs text-slate-400">
-              Standardizing timing vectors and persisting artifact <span className="font-mono text-sky-400">user_profile_v1.0.joblib</span>
+            <p className="text-xs text-slate-400 font-mono">
+              Fitting One-Class SVM RBF hyper-parameters on enrolled vectors
             </p>
           </div>
         ) : (
-          <div>
+          <div className="space-y-6">
             {/* Prompt Box */}
-            <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 mb-5">
-              <div className="text-[11px] uppercase tracking-wider font-bold text-sky-400 mb-2 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" />
+            <div className="bg-slate-950/90 border border-slate-800 rounded-2xl p-6 shadow-inner">
+              <div className="text-[11px] uppercase tracking-wider font-bold text-cyan-400 mb-2 flex items-center gap-2">
+                <Sparkles className="w-4 h-4" />
                 <span>Type the following prompt naturally:</span>
               </div>
-              <p className="text-sm font-medium text-slate-200 leading-relaxed font-mono select-none">
+              <p className="text-sm font-medium text-slate-200 leading-relaxed font-mono select-none bg-slate-900/60 p-4 rounded-xl border border-slate-800/80">
                 "{promptText}"
               </p>
             </div>
 
             {/* Typing Textarea */}
-            <div className="mb-6">
-              <label className="block text-xs font-semibold text-slate-400 mb-1.5">
-                Typing Input Area (Timing will be measured in real time):
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-2">
+                Calibration Pad (Keystroke dwell & flight times are recorded):
               </label>
               <textarea
                 rows={4}
@@ -252,16 +262,16 @@ export const EnrollmentWizard: React.FC<EnrollmentWizardProps> = ({ onComplete }
                 onKeyUp={handleKeyUp}
                 onPaste={handlePaste}
                 placeholder="Start typing the prompt above..."
-                className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 rounded-2xl p-4 text-sm text-white placeholder-slate-600 transition-all font-mono leading-relaxed resize-none"
+                className="w-full bg-slate-950 border border-slate-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 rounded-2xl p-4 text-sm text-white placeholder-slate-600 transition-all font-mono leading-relaxed resize-none shadow-inner"
               />
               <div className="flex justify-between text-[11px] text-slate-500 mt-2 font-mono">
-                <span>Keystrokes buffered: <strong className="text-sky-400">{keyEvents.current.length}</strong></span>
-                <span>Quality Gate: <strong>No Paste / Low Backspace</strong></span>
+                <span>Keystrokes buffered: <strong className="text-cyan-400">{keyEvents.current.length}</strong></span>
+                <span>Gate: <strong>Zero Paste / Natural Variance</strong></span>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center justify-end gap-3">
+            <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => {
@@ -270,23 +280,23 @@ export const EnrollmentWizard: React.FC<EnrollmentWizardProps> = ({ onComplete }
                   backspaceCount.current = 0;
                   setInputText('');
                 }}
-                className="px-4 py-2.5 rounded-xl border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 text-xs font-medium transition-all"
+                className="px-5 py-3 rounded-xl border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800 text-xs font-medium transition-all"
               >
-                Clear & Reset
+                Clear Buffer
               </button>
 
               <button
                 type="button"
                 disabled={loading || inputText.trim().length < 20}
                 onClick={submitSessionWindow}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 disabled:opacity-40 text-white font-bold text-xs shadow-lg shadow-sky-600/25 transition-all flex items-center gap-2"
+                className="px-7 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 disabled:opacity-40 text-white font-bold text-xs shadow-xl shadow-cyan-500/25 transition-all flex items-center gap-2 hover:scale-105"
               >
                 {loading ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
                 ) : (
                   <ArrowRight className="w-4 h-4" />
                 )}
-                <span>Submit Session {currentStep + 1}</span>
+                <span>Calibrate Session {currentStep + 1}</span>
               </button>
             </div>
           </div>
